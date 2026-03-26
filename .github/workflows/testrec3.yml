@@ -1,0 +1,48 @@
+name: Record M3U8 Auto Best 1 Minute
+
+on:
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install FFmpeg
+        run: sudo apt update && sudo apt install -y ffmpeg
+
+      - name: Auto select best stream + record 1 minute
+        run: |
+          URL=https://live.fptplay53.net/live/media/VTV_can_tho/live_hls_avc/index.m3u8
+
+          echo "🔍 Đang tìm stream chất lượng cao nhất..."
+
+          BEST_URL=$(ffmpeg -i "$URL" 2>&1 | \
+          grep -oE 'https://[^ ]+\.m3u8' | \
+          sort -u | \
+          while read line; do
+            bitrate=$(echo "$line" | grep -oE '[0-9]{6,}' | head -n1)
+            echo "$bitrate $line"
+          done | sort -nr | head -n1 | cut -d' ' -f2)
+
+          echo "✅ Dùng link:"
+          echo "$BEST_URL"
+
+          ffmpeg -loglevel warning -y \
+          -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 \
+          -i "$BEST_URL" \
+          -map 0:v -map 0:a? \
+          -c copy \
+          -f mpegts \
+          -t 60 \
+          output.ts
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: test-1-minute
+          path: output.ts
