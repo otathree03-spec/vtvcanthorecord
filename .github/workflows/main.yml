@@ -1,4 +1,4 @@
-name: testvtvctrecord1
+name: VTV Cần Thơ -> VTV10
 
 on:
   workflow_dispatch:
